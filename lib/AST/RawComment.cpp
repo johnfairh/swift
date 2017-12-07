@@ -57,11 +57,14 @@ static SingleRawComment::CommentKind getCommentKind(StringRef Comment) {
 SingleRawComment::SingleRawComment(CharSourceRange Range,
                                    const SourceManager &SourceMgr)
     : Range(Range), RawText(SourceMgr.extractText(Range)),
-      Kind(static_cast<unsigned>(getCommentKind(RawText))),
-      EndLine(SourceMgr.getLineNumber(Range.getEnd())) {
+      Kind(static_cast<unsigned>(getCommentKind(RawText))) {
   auto StartLineAndColumn = SourceMgr.getLineAndColumn(Range.getStart());
   StartLine = StartLineAndColumn.first;
   StartColumn = StartLineAndColumn.second;
+  if (isLine())
+    EndLine = StartLine;
+  else
+    EndLine = SourceMgr.getLineNumber(Range.getEnd());
 }
 
 SingleRawComment::SingleRawComment(StringRef RawText, unsigned StartColumn)
@@ -69,13 +72,16 @@ SingleRawComment::SingleRawComment(StringRef RawText, unsigned StartColumn)
       StartColumn(StartColumn), StartLine(0), EndLine(0) {}
 
 static void addCommentToList(SmallVectorImpl<SingleRawComment> &Comments,
+                             unsigned &EndLine,
                              const SingleRawComment &SRC) {
   // TODO: consider producing warnings when we decide not to merge comments.
 
   if (SRC.isOrdinary()) {
-    // Skip gyb comments that are line number markers.
-    if (SRC.RawText.startswith("// ###"))
+    // Skip gyb comments that are line number markers; keep merging doc comments.
+    if (SRC.RawText.startswith("// ###")) {
+      EndLine = SRC.EndLine;
       return;
+    }
 
     Comments.clear();
     return;
@@ -85,18 +91,17 @@ static void addCommentToList(SmallVectorImpl<SingleRawComment> &Comments,
   // anything to merge it with).
   if (Comments.empty()) {
     Comments.push_back(SRC);
+    EndLine = SRC.EndLine;
     return;
   }
 
-  auto &Last = Comments.back();
-
-  // Merge comments if they are on same or consecutive lines.
-  if (Last.EndLine + 1 < SRC.StartLine) {
+  // Merge comments only if they are on same or consecutive lines.
+  if (EndLine + 1 < SRC.StartLine) {
     Comments.clear();
-    return;
   }
 
   Comments.push_back(SRC);
+  EndLine = SRC.EndLine;
 }
 
 static RawComment toRawComment(ASTContext &Context, CharSourceRange Range) {
@@ -114,12 +119,13 @@ static RawComment toRawComment(ASTContext &Context, CharSourceRange Range) {
           Offset, EndOffset);
   SmallVector<SingleRawComment, 16> Comments;
   Token Tok;
+  unsigned EndLine = 0;
   while (true) {
     L.lex(Tok);
     if (Tok.is(tok::eof))
       break;
     assert(Tok.is(tok::comment));
-    addCommentToList(Comments, SingleRawComment(Tok.getRange(), SourceMgr));
+    addCommentToList(Comments, EndLine, SingleRawComment(Tok.getRange(), SourceMgr));
   }
   RawComment Result;
   Result.Comments = Context.AllocateCopy(Comments);

@@ -92,6 +92,16 @@ func is_doc18() {}
  */
 func is_doc19() {}
 
+/// Aaa IS_DOC_NOT_ATTACHED
+
+/// is_doc20 IS_DOC_SINGLE
+func is_doc20() {}
+
+/** Aaa IS_DOC_NOT_ATTACHED */
+
+/** is_doc21 IS_DOC_SINGLE */
+func is_doc21() {}
+
 // RUN: %target-swift-ide-test -print-comments -source-filename %s > %t.txt
 // RUN: %FileCheck %s -check-prefix=WRONG < %t.txt
 // RUN: %FileCheck %s < %t.txt
@@ -125,4 +135,5 @@ func is_doc19() {}
 // CHECK-NEXT: comment_merge.swift:77:6: Func/is_doc17 RawComment=[/** Aaa is_doc17 IS_DOC_START *//** bbb *//// IS_DOC_END\n]
 // CHECK-NEXT: comment_merge.swift:82:6: Func/is_doc18 RawComment=[/// is_doc18 IS_DOC_START IS_DOC_END\n]
 // CHECK-NEXT: comment_merge.swift:93:6: Func/is_doc19 RawComment=[/// is_doc19 IS_DOC_START\n/** Aaa\n *\n * Bbb *//// Ccc\n/** Ddd\n *  Eee  IS_DOC_END\n */]
-
+// CHECK-NEXT: comment_merge.swift:98:6: Func/is_doc20 RawComment=[/// is_doc20 IS_DOC_SINGLE\n]
+// CHECK-NEXT: comment_merge.swift:103:6: Func/is_doc21 RawComment=[/** is_doc21 IS_DOC_SINGLE */]
