@@ -847,6 +847,14 @@ bool ModelASTWalker::walkToDeclPre(Decl *D) {
             CharSourceRange(ConfigD->getEndLoc(), 6/*'#endif'*/) }))
         return false;
 
+  } else if (auto *PoundDiagnosticD = dyn_cast<PoundDiagnosticDecl>(D)) {
+      unsigned TokLen;
+      if (PoundDiagnosticD->isError())
+        TokLen = 6; // '#error'
+      else
+        TokLen = 8; // '#warning'
+      passNonTokenNode({ SyntaxNodeKind::BuildConfigKeyword,
+                       CharSourceRange(PoundDiagnosticD->getLoc(), TokLen) });
   } else if (auto *EnumCaseD = dyn_cast<EnumCaseDecl>(D)) {
     SyntaxStructureNode SN;
     setDecl(SN, D);
